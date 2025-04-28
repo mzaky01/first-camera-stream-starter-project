@@ -25,8 +25,12 @@ async function startup() {
   });
 
   function populateTakenPicture(image) {
-    cameraOutputList.innerHTML = `
-    <li><img src="${image}" alt=""></li>
+    cameraOutputList.innerHTML += `
+    <li>
+      <img src="${image}" alt="">
+      <a href="${image}" download="image.png">Download</a>
+    </li>
+    
   `;
   }
 
@@ -34,18 +38,17 @@ async function startup() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          deviceId: {
-            exact: !streaming ? undefined : cameraListSelect.value,
-          },
+          deviceId: streaming ? { exact: cameraListSelect.value } : undefined,
           aspectRatio: 16 / 9,
           width: 1280,
           height: 720,
         },
       });
       // Show available camera after camera permission granted
-      await populateCameraList(stream);
+      await populateCameraList();
       return stream;
     } catch (error) {
+      alert('Tidak dapat mengakses webcam, silakan periksa izin akses webcam.');
       throw error;
     }
   }
@@ -54,6 +57,7 @@ async function startup() {
     try {
       // Get all available webcam
       const enumeratedDevices = await navigator.mediaDevices.enumerateDevices();
+      console.log('enumeratedDevices', enumeratedDevices);
       const list = enumeratedDevices.filter((device) => device.kind === 'videoinput');
       cameraListSelect.innerHTML = list.reduce((accumulator, device, currentIndex) => {
         return accumulator.concat(`
@@ -70,6 +74,12 @@ async function startup() {
   function cameraLaunch(stream) {
     cameraVideo.srcObject = stream;
     cameraVideo.play();
+
+    const videoTrack = stream.getVideoTracks()[0];
+    const activeDeviceId = videoTrack.getSettings().deviceId;
+  
+    // Set select ke kamera aktif
+    cameraListSelect.value = activeDeviceId;
   }
 
   function cameraTakePicture() {
@@ -88,10 +98,11 @@ async function startup() {
     currentStream.getTracks().forEach((track) => {
       track.stop();
     });
+    streaming = false;
   }
 
 
-  cameraListSelect.addEventListener('change', async () => {
+  cameraListSelect.addEventListener('change', async (event) => {
     stopCurrentStream();
 
     currentStream = await getStream();
@@ -113,7 +124,7 @@ async function startup() {
       });
     } catch (error) {
       console.error(error);
-      alert('Error occurred:', error.message);
+      alert('Error occurred:' + error.message);
     }
   }
 
